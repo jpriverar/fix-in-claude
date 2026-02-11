@@ -3,11 +3,21 @@
  */
 
 const { exec } = require('child_process');
-const { writeFileSync, unlinkSync } = require('fs');
+const fs = require('fs');
+const { writeFileSync, unlinkSync } = fs;
 const { join } = require('path');
 const { tmpdir } = require('os');
 
-const TERMINAL = process.env.CLAUDE_FIX_TERMINAL || 'Terminal';
+const CONFIG_FILE = join(process.env.HOME, '.claude-fix', 'config.json');
+
+function getConfigTerminal() {
+  try {
+    return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')).CLAUDE_FIX_TERMINAL;
+  } catch {}
+  return null;
+}
+
+const TERMINAL = process.env.CLAUDE_FIX_TERMINAL || getConfigTerminal() || 'Terminal';
 
 /**
  * Terminal launcher implementations
@@ -144,7 +154,7 @@ function isTerminalAvailable() {
   }
 
   try {
-    require('fs').accessSync(appPath);
+    fs.accessSync(appPath);
     return true;
   } catch {
     return false;

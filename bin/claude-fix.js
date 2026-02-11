@@ -215,6 +215,66 @@ function cmdUninstall() {
   console.log(`Uninstalled: ${PLIST_DEST}`);
 }
 
+const VALID_CONFIG_KEYS = ['DD_API_KEY', 'DD_APP_KEY', 'CLAUDE_FIX_TERMINAL'];
+
+function redact(value) {
+  if (!value || value.length <= 4) return value || '';
+  return '...' + value.slice(-4);
+}
+
+function cmdConfig(args) {
+  const sub = args[0];
+
+  if (sub === 'path') {
+    console.log(CONFIG_FILE);
+    return;
+  }
+
+  if (sub === 'set') {
+    const key = args[1];
+    const value = args.slice(2).join(' ');
+
+    if (!key || !value) {
+      console.error('Usage: claude-fix config set <key> <value>');
+      console.error('Keys: ' + VALID_CONFIG_KEYS.join(', '));
+      process.exit(1);
+    }
+
+    if (!VALID_CONFIG_KEYS.includes(key)) {
+      console.error(`Unknown key: ${key}`);
+      console.error('Valid keys: ' + VALID_CONFIG_KEYS.join(', '));
+      process.exit(1);
+    }
+
+    const config = loadConfig();
+    config[key] = value;
+
+    const configDir = path.dirname(CONFIG_FILE);
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true });
+    }
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2) + '\n');
+    fs.chmodSync(CONFIG_FILE, 0o600);
+
+    console.log(`Updated ${key} = ${key.includes('KEY') ? redact(value) : value}`);
+    console.log('Restart the daemon for changes to take effect:');
+    console.log('  claude-fix stop && claude-fix start');
+    return;
+  }
+
+  // Default: show current config
+  const config = loadConfig();
+  if (Object.keys(config).length === 0) {
+    console.log('No config found at ' + CONFIG_FILE);
+    return;
+  }
+
+  for (const [key, value] of Object.entries(config)) {
+    const display = key.includes('KEY') ? redact(value) : value;
+    console.log(`${key} = ${display}`);
+  }
+}
+
 function printHelp() {
   console.log(`
 claude-fix - HTTP daemon that spawns Claude Code with context
@@ -228,19 +288,23 @@ Commands:
   stop                 Stop daemon via launchctl
   status               Check if daemon is running
   fix "message"        Quick one-shot fix (no daemon needed)
+  config               Show current config
+  config set <k> <v>   Set a config value
+  config path          Print config file path
   install              Install launchd service for auto-start
   uninstall            Remove launchd service
 
+Config keys:
+  DD_API_KEY, DD_APP_KEY, CLAUDE_FIX_TERMINAL
+
 Examples:
   claude-fix serve
+  claude-fix config set CLAUDE_FIX_TERMINAL iTerm
   claude-fix fix "TypeError: Cannot read property 'foo' of undefined"
 
 API:
   GET http://localhost:${DEFAULT_PORT}/dd/claude-fix?data=<encoded-data>
   GET http://localhost:${DEFAULT_PORT}/dd/health
-
-Config:
-  ~/.claude-fix/config.json  DD_API_KEY, DD_APP_KEY, CLAUDE_FIX_TERMINAL
 `);
 }
 
@@ -264,6 +328,9 @@ async function main() {
       break;
     case 'fix':
       await cmdFix(cmdArgs);
+      break;
+    case 'config':
+      cmdConfig(cmdArgs);
       break;
     case 'install':
       cmdInstall();
