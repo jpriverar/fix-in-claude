@@ -90,19 +90,23 @@ echo "${dim}   Keys are stored in ~/.claude-fix/config.json and can be added/upd
 echo "${dim}   Without keys, the daemon starts but Datadog integration won't work.${reset}"
 echo ""
 
-DD_API_KEY="${DD_API_KEY:-$EXISTING_DD_API_KEY}"
-DD_APP_KEY="${DD_APP_KEY:-$EXISTING_DD_APP_KEY}"
+DEFAULT_API_KEY="${EXISTING_DD_API_KEY}"
+DEFAULT_APP_KEY="${EXISTING_DD_APP_KEY}"
 
-if [ -z "$DD_API_KEY" ]; then
+if [ -n "$DEFAULT_API_KEY" ]; then
+  REDACTED_API="...${DEFAULT_API_KEY: -4}"
+  read -p "   Datadog API Key [${REDACTED_API}]: " DD_API_KEY < /dev/tty
+  DD_API_KEY="${DD_API_KEY:-$DEFAULT_API_KEY}"
+else
   read -p "   Datadog API Key: " DD_API_KEY < /dev/tty
-elif [ -n "$DD_API_KEY" ]; then
-  echo "   Datadog API Key: ${dim}(kept from existing config)${reset}"
 fi
 
-if [ -z "$DD_APP_KEY" ]; then
+if [ -n "$DEFAULT_APP_KEY" ]; then
+  REDACTED_APP="...${DEFAULT_APP_KEY: -4}"
+  read -p "   Datadog App Key [${REDACTED_APP}]: " DD_APP_KEY < /dev/tty
+  DD_APP_KEY="${DD_APP_KEY:-$DEFAULT_APP_KEY}"
+else
   read -p "   Datadog App Key: " DD_APP_KEY < /dev/tty
-elif [ -n "$DD_APP_KEY" ]; then
-  echo "   Datadog App Key: ${dim}(kept from existing config)${reset}"
 fi
 
 # 6. Select preferred terminal
@@ -112,17 +116,12 @@ TERMINALS=("Terminal")
 [ -d "/Applications/Alacritty.app" ] && TERMINALS+=("Alacritty")
 [ -d "/Applications/WezTerm.app" ] && TERMINALS+=("WezTerm")
 
-# Only skip prompt if CLAUDE_FIX_TERMINAL was explicitly passed as env var
-EXPLICIT_TERMINAL="$CLAUDE_FIX_TERMINAL"
 DEFAULT_TERMINAL="${EXISTING_TERMINAL:-Terminal}"
 
 echo ""
 echo "${bold}🖥  Select terminal:${reset}"
 
-if [ -n "$EXPLICIT_TERMINAL" ]; then
-  CLAUDE_FIX_TERMINAL="$EXPLICIT_TERMINAL"
-  echo "   Using terminal: ${cyan}${CLAUDE_FIX_TERMINAL}${reset}"
-elif [ ${#TERMINALS[@]} -eq 1 ]; then
+if [ ${#TERMINALS[@]} -eq 1 ]; then
   echo "   Using terminal: ${cyan}Terminal${reset} ${dim}(only Terminal.app found)${reset}"
   CLAUDE_FIX_TERMINAL="Terminal"
 else
