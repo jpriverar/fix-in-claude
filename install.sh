@@ -112,28 +112,33 @@ TERMINALS=("Terminal")
 [ -d "/Applications/Alacritty.app" ] && TERMINALS+=("Alacritty")
 [ -d "/Applications/WezTerm.app" ] && TERMINALS+=("WezTerm")
 
-CLAUDE_FIX_TERMINAL="${CLAUDE_FIX_TERMINAL:-$EXISTING_TERMINAL}"
+# Only skip prompt if CLAUDE_FIX_TERMINAL was explicitly passed as env var
+EXPLICIT_TERMINAL="$CLAUDE_FIX_TERMINAL"
+DEFAULT_TERMINAL="${EXISTING_TERMINAL:-Terminal}"
 
 echo ""
 echo "${bold}🖥  Select terminal:${reset}"
 
-if [ -n "$CLAUDE_FIX_TERMINAL" ]; then
-  echo "   Using terminal: ${cyan}${CLAUDE_FIX_TERMINAL}${reset} ${dim}(kept from existing config)${reset}"
+if [ -n "$EXPLICIT_TERMINAL" ]; then
+  CLAUDE_FIX_TERMINAL="$EXPLICIT_TERMINAL"
+  echo "   Using terminal: ${cyan}${CLAUDE_FIX_TERMINAL}${reset}"
 elif [ ${#TERMINALS[@]} -eq 1 ]; then
   echo "   Using terminal: ${cyan}Terminal${reset} ${dim}(only Terminal.app found)${reset}"
   CLAUDE_FIX_TERMINAL="Terminal"
 else
+  DEFAULT_IDX=1
   for i in "${!TERMINALS[@]}"; do
-    echo "${dim}   ○ $((i+1))) ${TERMINALS[$i]}${reset}"
+    if [ "${TERMINALS[$i]}" = "$DEFAULT_TERMINAL" ]; then
+      echo "${cyan}   ◉ $((i+1))) ${TERMINALS[$i]}  (current)${reset}"
+      DEFAULT_IDX=$((i+1))
+    else
+      echo "${dim}   ○ $((i+1))) ${TERMINALS[$i]}${reset}"
+    fi
   done
   echo ""
-  PS3="   Select terminal (1-${#TERMINALS[@]}): "
-  select CLAUDE_FIX_TERMINAL in "${TERMINALS[@]}"; do
-    if [ -n "$CLAUDE_FIX_TERMINAL" ]; then
-      break
-    fi
-    echo "   ${red}Invalid selection. Please try again.${reset}"
-  done < /dev/tty
+  read -p "   Choice [${DEFAULT_IDX}]: " CHOICE < /dev/tty
+  CHOICE="${CHOICE:-$DEFAULT_IDX}"
+  CLAUDE_FIX_TERMINAL="${TERMINALS[$((CHOICE-1))]:-$DEFAULT_TERMINAL}"
 fi
 
 # Write config file
