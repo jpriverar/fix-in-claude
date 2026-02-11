@@ -82,13 +82,13 @@ DD_API_KEY="${DD_API_KEY:-$EXISTING_DD_API_KEY}"
 DD_APP_KEY="${DD_APP_KEY:-$EXISTING_DD_APP_KEY}"
 
 if [ -z "$DD_API_KEY" ]; then
-  read -p "Datadog API Key: " DD_API_KEY
+  read -p "Datadog API Key: " DD_API_KEY < /dev/tty
 elif [ -n "$DD_API_KEY" ]; then
   echo "Datadog API Key: (kept from existing config)"
 fi
 
 if [ -z "$DD_APP_KEY" ]; then
-  read -p "Datadog App Key: " DD_APP_KEY
+  read -p "Datadog App Key: " DD_APP_KEY < /dev/tty
 elif [ -n "$DD_APP_KEY" ]; then
   echo "Datadog App Key: (kept from existing config)"
 fi
@@ -120,7 +120,7 @@ else
       break
     fi
     echo "Invalid selection. Please try again."
-  done
+  done < /dev/tty
 fi
 
 echo "  Selected: $CLAUDE_FIX_TERMINAL"
