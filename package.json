@@ -1,0 +1,15 @@
+{
+  "name": "claude-fix",
+  "version": "1.0.0",
+  "description": "HTTP daemon that spawns Claude Code in a terminal with context",
+  "main": "src/server.js",
+  "bin": {
+    "claude-fix": "./bin/claude-fix.js"
+  },
+  "scripts": {
+    "start": "node bin/claude-fix.js serve"
+  },
+  "keywords": ["claude", "cli", "daemon"],
+  "author": "jp.riveraruiz",
+  "license": "MIT"
+}

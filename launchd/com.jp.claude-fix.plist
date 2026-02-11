@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.jp.claude-fix</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>${NODE_PATH}</string>
+        <string>${SCRIPT_PATH}</string>
+        <string>serve</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/claude-fix.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/claude-fix.err</string>
+</dict>
+</plist>
