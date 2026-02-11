@@ -153,16 +153,39 @@ async function cmdFix(args) {
   await spawnTerminal(prompt, process.cwd());
 }
 
-function cmdInstall() {
+const TERMINALS = ['Terminal', 'iTerm', 'Kitty', 'Alacritty', 'WezTerm'];
+
+function promptTerminal(current) {
+  const { createInterface } = require('readline');
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+
+  return new Promise((resolve) => {
+    console.log('Select terminal:');
+    TERMINALS.forEach((t, i) => {
+      const marker = t === current ? ' (current)' : '';
+      console.log(`  ${i + 1}) ${t}${marker}`);
+    });
+
+    const defaultIndex = Math.max(0, TERMINALS.indexOf(current)) + 1;
+    rl.question(`Choice [${defaultIndex}]: `, (answer) => {
+      rl.close();
+      const choice = parseInt(answer) || defaultIndex;
+      resolve(TERMINALS[choice - 1] || current);
+    });
+  });
+}
+
+async function cmdInstall() {
   if (!fs.existsSync(PLIST_SRC)) {
     console.error(`Plist file not found: ${PLIST_SRC}`);
     console.error('Run this command from the claude-fix directory');
     process.exit(1);
   }
 
-  // Write config file with terminal preference
+  // Prompt for terminal preference
   const config = loadConfig();
-  config.CLAUDE_FIX_TERMINAL = process.env.CLAUDE_FIX_TERMINAL || config.CLAUDE_FIX_TERMINAL || 'Terminal';
+  const current = process.env.CLAUDE_FIX_TERMINAL || config.CLAUDE_FIX_TERMINAL || 'Terminal';
+  config.CLAUDE_FIX_TERMINAL = await promptTerminal(current);
   const configDir = path.dirname(CONFIG_FILE);
   if (!fs.existsSync(configDir)) {
     fs.mkdirSync(configDir, { recursive: true });
@@ -333,7 +356,7 @@ async function main() {
       cmdConfig(cmdArgs);
       break;
     case 'install':
-      cmdInstall();
+      await cmdInstall();
       break;
     case 'uninstall':
       cmdUninstall();
