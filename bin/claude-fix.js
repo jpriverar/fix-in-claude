@@ -185,7 +185,12 @@ function promptTerminal(current) {
 }
 
 async function cmdInstall() {
-  console.log(bold('\n\uD83D\uDD27 claude-fix install\n'));
+  // When called from install.sh, CLAUDE_FIX_TERMINAL env var is set — skip redundant output
+  const calledFromInstallSh = !!process.env.CLAUDE_FIX_TERMINAL;
+
+  if (!calledFromInstallSh) {
+    console.log(bold('\n\uD83D\uDD27 claude-fix install\n'));
+  }
 
   if (!fs.existsSync(PLIST_SRC)) {
     console.error(red(`\u274C Plist file not found: ${PLIST_SRC}`));
@@ -193,17 +198,21 @@ async function cmdInstall() {
     process.exit(1);
   }
 
-  // Prompt for terminal preference
+  // Prompt for terminal preference (skip when env var is set — install.sh already prompted)
   const config = loadConfig();
-  const current = process.env.CLAUDE_FIX_TERMINAL || config.CLAUDE_FIX_TERMINAL || 'Terminal';
-  config.CLAUDE_FIX_TERMINAL = await promptTerminal(current);
+  if (calledFromInstallSh) {
+    config.CLAUDE_FIX_TERMINAL = process.env.CLAUDE_FIX_TERMINAL;
+  } else {
+    const current = config.CLAUDE_FIX_TERMINAL || 'Terminal';
+    config.CLAUDE_FIX_TERMINAL = await promptTerminal(current);
+  }
   const configDir = path.dirname(CONFIG_FILE);
   if (!fs.existsSync(configDir)) {
     fs.mkdirSync(configDir, { recursive: true });
   }
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2) + '\n');
   fs.chmodSync(CONFIG_FILE, 0o600);
-  console.log(green('\n\u2705 Config saved') + dim(`         ${CONFIG_FILE}`));
+  console.log(green('\u2705 Config saved') + dim(`         ${CONFIG_FILE}`));
 
   // Read and update plist with correct paths
   let plist = fs.readFileSync(PLIST_SRC, 'utf8');
@@ -218,7 +227,7 @@ async function cmdInstall() {
 
   // Write plist
   fs.writeFileSync(PLIST_DEST, plist);
-  console.log(green('\u2705 Plist installed') + dim(`      ${PLIST_DEST}`));
+  console.log(green('\u2705 Plist installed') + dim(`      ~/Library/LaunchAgents/${PLIST_NAME}`));
 
   // Load the service
   try {
@@ -228,7 +237,9 @@ async function cmdInstall() {
     } catch {}
     execSync(`launchctl bootstrap gui/$(id -u) ${PLIST_DEST}`, { stdio: 'inherit' });
     console.log(green('\u2705 Service loaded') + dim('       claude-fix will start automatically on login'));
-    console.log(bold('\n\uD83C\uDF89 Install complete!\n'));
+    if (!calledFromInstallSh) {
+      console.log(bold('\n\uD83C\uDF89 Install complete!\n'));
+    }
   } catch (err) {
     console.error(red('\n\u274C Failed to load service. Load manually:'));
     console.error(dim(`   launchctl bootstrap gui/$(id -u) ${PLIST_DEST}`));

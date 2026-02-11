@@ -6,57 +6,69 @@ CONFIG_FILE="$INSTALL_DIR/config.json"
 REPO="jpriverar/fix-in-claude"
 SYMLINK_PATH="/usr/local/bin/claude-fix"
 
-echo "Installing claude-fix..."
+# ANSI formatting
+bold=$'\e[1m'
+green=$'\e[32m'
+cyan=$'\e[36m'
+dim=$'\e[2m'
+red=$'\e[31m'
+yellow=$'\e[33m'
+reset=$'\e[0m'
+
+echo ""
+echo "${bold}🔧  Installing claude-fix...${reset}"
+echo ""
 
 # 1. Check prerequisites
 echo "Checking prerequisites..."
 
 if [[ "$(uname)" != "Darwin" ]]; then
-  echo "Error: claude-fix currently only supports macOS"
+  echo "${red}❌ Error: claude-fix currently only supports macOS${reset}"
   exit 1
 fi
 
 if ! command -v node >/dev/null 2>&1; then
-  echo "Error: Node.js is required"
-  echo "Install from https://nodejs.org or via: brew install node"
+  echo "${red}❌ Error: Node.js is required${reset}"
+  echo "   Install from https://nodejs.org or via: brew install node"
   exit 1
 fi
 
 if ! command -v claude >/dev/null 2>&1; then
-  echo "Error: Claude Code CLI is required"
-  echo "Install from https://docs.anthropic.com/en/docs/claude-code"
+  echo "${red}❌ Error: Claude Code CLI is required${reset}"
+  echo "   Install from https://docs.anthropic.com/en/docs/claude-code"
   exit 1
 fi
 
 if ! command -v git >/dev/null 2>&1; then
-  echo "Error: Git is required"
+  echo "${red}❌ Error: Git is required${reset}"
   exit 1
 fi
 
-echo "  Node.js: $(node --version)"
-echo "  Claude CLI: $(claude --version 2>/dev/null || echo 'installed')"
-echo "  Git: $(git --version)"
+echo "  ${green}✅ Node.js:${reset} $(node --version)"
+echo "  ${green}✅ Claude CLI:${reset} $(claude --version 2>/dev/null || echo 'installed')"
+echo "  ${green}✅ Git:${reset} $(git --version)"
 
 echo ""
-echo "Note: This script requires sudo to create a symlink in /usr/local/bin"
+echo "${yellow}⚠️  This script requires sudo to create a symlink in /usr/local/bin${reset}"
 echo ""
 
 # 2. Check repo access
 if ! git ls-remote "https://github.com/$REPO.git" HEAD >/dev/null 2>&1; then
-  echo "Error: Cannot access $REPO"
-  echo "Make sure you have access and are authenticated with GitHub"
+  echo "${red}❌ Error: Cannot access $REPO${reset}"
+  echo "   Make sure you have access and are authenticated with GitHub"
   exit 1
 fi
 
 # 3. Download
 if [ -d "$INSTALL_DIR" ]; then
-  echo "Updating existing installation..."
+  echo "📦  Updating existing installation..."
   # Preserve config
   cp "$CONFIG_FILE" /tmp/claude-fix-config-backup.json 2>/dev/null || true
   rm -rf "$INSTALL_DIR"
+else
+  echo "📦  Downloading claude-fix..."
 fi
 
-echo "Downloading claude-fix..."
 git clone --quiet "https://github.com/$REPO.git" "$INSTALL_DIR"
 
 # Restore config if updating
@@ -73,30 +85,27 @@ fi
 
 # 5. Prompt for credentials
 echo ""
-echo "Datadog API credentials (optional)"
-echo "Keys are stored in ~/.claude-fix/config.json and can be added/updated anytime."
-echo "Without keys, the daemon starts but Datadog integration won't work."
+echo "${bold}🔑  Datadog API credentials${reset} ${dim}(optional)${reset}"
+echo "${dim}   Keys are stored in ~/.claude-fix/config.json and can be added/updated anytime.${reset}"
+echo "${dim}   Without keys, the daemon starts but Datadog integration won't work.${reset}"
 echo ""
 
 DD_API_KEY="${DD_API_KEY:-$EXISTING_DD_API_KEY}"
 DD_APP_KEY="${DD_APP_KEY:-$EXISTING_DD_APP_KEY}"
 
 if [ -z "$DD_API_KEY" ]; then
-  read -p "Datadog API Key: " DD_API_KEY < /dev/tty
+  read -p "   Datadog API Key: " DD_API_KEY < /dev/tty
 elif [ -n "$DD_API_KEY" ]; then
-  echo "Datadog API Key: (kept from existing config)"
+  echo "   Datadog API Key: ${dim}(kept from existing config)${reset}"
 fi
 
 if [ -z "$DD_APP_KEY" ]; then
-  read -p "Datadog App Key: " DD_APP_KEY < /dev/tty
+  read -p "   Datadog App Key: " DD_APP_KEY < /dev/tty
 elif [ -n "$DD_APP_KEY" ]; then
-  echo "Datadog App Key: (kept from existing config)"
+  echo "   Datadog App Key: ${dim}(kept from existing config)${reset}"
 fi
 
 # 6. Select preferred terminal
-echo ""
-echo "Detecting installed terminals..."
-
 TERMINALS=("Terminal")
 [ -d "/Applications/iTerm.app" ] && TERMINALS+=("iTerm")
 [ -d "/Applications/kitty.app" ] && TERMINALS+=("Kitty")
@@ -105,25 +114,27 @@ TERMINALS=("Terminal")
 
 CLAUDE_FIX_TERMINAL="${CLAUDE_FIX_TERMINAL:-$EXISTING_TERMINAL}"
 
+echo ""
+echo "${bold}🖥  Select terminal:${reset}"
+
 if [ -n "$CLAUDE_FIX_TERMINAL" ]; then
-  echo "Using terminal: $CLAUDE_FIX_TERMINAL (kept from existing config)"
+  echo "   Using terminal: ${cyan}${CLAUDE_FIX_TERMINAL}${reset} ${dim}(kept from existing config)${reset}"
 elif [ ${#TERMINALS[@]} -eq 1 ]; then
-  echo "Only Terminal.app found, using it as default."
+  echo "   Using terminal: ${cyan}Terminal${reset} ${dim}(only Terminal.app found)${reset}"
   CLAUDE_FIX_TERMINAL="Terminal"
 else
-  echo "Found terminals: ${TERMINALS[*]}"
+  for i in "${!TERMINALS[@]}"; do
+    echo "${dim}   ○ $((i+1))) ${TERMINALS[$i]}${reset}"
+  done
   echo ""
-  echo "Which terminal would you like claude-fix to use?"
-  PS3="Select terminal (1-${#TERMINALS[@]}): "
+  PS3="   Select terminal (1-${#TERMINALS[@]}): "
   select CLAUDE_FIX_TERMINAL in "${TERMINALS[@]}"; do
     if [ -n "$CLAUDE_FIX_TERMINAL" ]; then
       break
     fi
-    echo "Invalid selection. Please try again."
+    echo "   ${red}Invalid selection. Please try again.${reset}"
   done < /dev/tty
 fi
-
-echo "  Selected: $CLAUDE_FIX_TERMINAL"
 
 # Write config file
 cat > "$CONFIG_FILE" << EOF
@@ -134,14 +145,12 @@ cat > "$CONFIG_FILE" << EOF
 }
 EOF
 chmod 600 "$CONFIG_FILE"
-echo "  Config saved: $CONFIG_FILE"
+
+echo ""
+echo "${green}✅ Config saved${reset}         ${dim}${CONFIG_FILE}${reset}"
 
 # 7. Create symlink
-echo ""
-echo "Adding claude-fix to PATH..."
-
 if [ -L "$SYMLINK_PATH" ] || [ -e "$SYMLINK_PATH" ]; then
-  echo "  Removing existing symlink..."
   sudo rm -f "$SYMLINK_PATH"
 fi
 
@@ -151,40 +160,30 @@ if [ ! -d "/usr/local/bin" ]; then
 fi
 
 sudo ln -sf "$INSTALL_DIR/bin/claude-fix.js" "$SYMLINK_PATH"
-echo "  Created: $SYMLINK_PATH -> $INSTALL_DIR/bin/claude-fix.js"
+echo "${green}✅ Symlink created${reset}      ${dim}${SYMLINK_PATH}${reset}"
 
-# 8. Install launchd service
+# 8. Install launchd service (JS handles plist + service loading output)
 echo ""
-echo "Installing launchd service..."
 CLAUDE_FIX_TERMINAL="$CLAUDE_FIX_TERMINAL" node "$INSTALL_DIR/bin/claude-fix.js" install
 
 # 9. Verify installation
-echo ""
-echo "Verifying installation..."
 sleep 2
 
 if curl -s --connect-timeout 5 http://localhost:8991/dd/health | grep -q '"status":"ok"'; then
-  echo "claude-fix is running!"
+  echo "${green}✅ claude-fix is running!${reset}"
 else
-  echo "Warning: Health check failed. The daemon may need a moment to start."
-  echo "  Check status with: claude-fix status"
-  echo "  View logs with: tail -f /tmp/claude-fix.log"
+  echo "${yellow}⚠️  Health check failed. The daemon may need a moment to start.${reset}"
+  echo "${dim}   Check status with: claude-fix status${reset}"
+  echo "${dim}   View logs with: tail -f /tmp/claude-fix.log${reset}"
 fi
 
 echo ""
-echo "============================================"
-echo "  Installation complete!"
-echo "============================================"
+echo "${bold}${green}🎉  Installation complete!${reset}"
 echo ""
-echo "The daemon is now running and will auto-start on login."
+echo "   The daemon is now running and will auto-start on login."
 echo ""
-echo "Commands:"
-echo "  claude-fix status     - Check daemon status"
-echo "  claude-fix stop       - Stop the daemon"
-echo "  claude-fix start      - Start the daemon"
-echo ""
-echo "API endpoint: http://localhost:8991/dd/claude-fix?data="
-echo ""
-echo "To uninstall:"
-echo "  claude-fix uninstall && sudo rm $SYMLINK_PATH && rm -rf $INSTALL_DIR"
+echo "   Commands:"
+echo "     claude-fix status     Check daemon status"
+echo "     claude-fix stop       Stop the daemon"
+echo "     claude-fix start      Start the daemon"
 echo ""
