@@ -20,6 +20,12 @@ const { createServer, DEFAULT_PORT } = require('../src/server');
 const { buildPrompt } = require('../src/prompt-builder');
 const { spawnTerminal } = require('../src/terminal');
 
+const bold = (s) => `\x1b[1m${s}\x1b[0m`;
+const green = (s) => `\x1b[32m${s}\x1b[0m`;
+const cyan = (s) => `\x1b[36m${s}\x1b[0m`;
+const dim = (s) => `\x1b[2m${s}\x1b[0m`;
+const red = (s) => `\x1b[31m${s}\x1b[0m`;
+
 const PID_FILE = '/tmp/claude-fix.pid';
 const PLIST_NAME = 'com.jp.claude-fix.plist';
 const PLIST_SRC = path.join(__dirname, '..', 'launchd', PLIST_NAME);
@@ -160,10 +166,13 @@ function promptTerminal(current) {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
 
   return new Promise((resolve) => {
-    console.log('Select terminal:');
+    console.log(bold('\n\uD83D\uDDA5  Select terminal:'));
     TERMINALS.forEach((t, i) => {
-      const marker = t === current ? ' (current)' : '';
-      console.log(`  ${i + 1}) ${t}${marker}`);
+      if (t === current) {
+        console.log(cyan(`   \u25C9 ${i + 1}) ${t}  (current)`));
+      } else {
+        console.log(dim(`   \u25CB ${i + 1}) ${t}`));
+      }
     });
 
     const defaultIndex = Math.max(0, TERMINALS.indexOf(current)) + 1;
@@ -176,9 +185,11 @@ function promptTerminal(current) {
 }
 
 async function cmdInstall() {
+  console.log(bold('\n\uD83D\uDD27 claude-fix install\n'));
+
   if (!fs.existsSync(PLIST_SRC)) {
-    console.error(`Plist file not found: ${PLIST_SRC}`);
-    console.error('Run this command from the claude-fix directory');
+    console.error(red(`\u274C Plist file not found: ${PLIST_SRC}`));
+    console.error('   Run this command from the claude-fix directory');
     process.exit(1);
   }
 
@@ -192,6 +203,7 @@ async function cmdInstall() {
   }
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2) + '\n');
   fs.chmodSync(CONFIG_FILE, 0o600);
+  console.log(green('\n\u2705 Config saved') + dim(`         ${CONFIG_FILE}`));
 
   // Read and update plist with correct paths
   let plist = fs.readFileSync(PLIST_SRC, 'utf8');
@@ -206,7 +218,7 @@ async function cmdInstall() {
 
   // Write plist
   fs.writeFileSync(PLIST_DEST, plist);
-  console.log(`Installed: ${PLIST_DEST}`);
+  console.log(green('\u2705 Plist installed') + dim(`      ${PLIST_DEST}`));
 
   // Load the service
   try {
@@ -215,10 +227,11 @@ async function cmdInstall() {
       execSync(`launchctl bootout gui/$(id -u) ${PLIST_DEST}`, { stdio: 'pipe' });
     } catch {}
     execSync(`launchctl bootstrap gui/$(id -u) ${PLIST_DEST}`, { stdio: 'inherit' });
-    console.log('Service loaded. claude-fix will start automatically on login.');
+    console.log(green('\u2705 Service loaded') + dim('       claude-fix will start automatically on login'));
+    console.log(bold('\n\uD83C\uDF89 Install complete!\n'));
   } catch (err) {
-    console.error('Failed to load service. You may need to load it manually:');
-    console.error(`  launchctl bootstrap gui/$(id -u) ${PLIST_DEST}`);
+    console.error(red('\n\u274C Failed to load service. Load manually:'));
+    console.error(dim(`   launchctl bootstrap gui/$(id -u) ${PLIST_DEST}`));
   }
 }
 
