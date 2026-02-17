@@ -7,6 +7,7 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const { spawnTerminal, getTerminalName, isTerminalAvailable } = require('./terminal');
+const { resolveRepo } = require('./repo-resolver');
 
 const CONFIG_FILE = path.join(process.env.HOME, '.claude-fix', 'config.json');
 
@@ -114,6 +115,9 @@ async function handleFix(req, res, url) {
       return;
     }
 
+    const repoUrl = url.searchParams.get('repo');
+    const cwd = repoUrl ? resolveRepo(repoUrl) : null;
+
     const datadogPrompt = await fetchDatadogPrompt(data);
 
     // Wrap in meta-prompt to wait for user approval
@@ -128,12 +132,14 @@ IMPORTANT: Do NOT take any action yet. Do NOT use any tools. Do NOT analyze or i
     sendJson(res, 200, {
       status: 'spawning',
       terminal: getTerminalName(),
+      repo: repoUrl || null,
+      repoPath: cwd || null,
       prompt: prompt.substring(0, 200) + (prompt.length > 200 ? '...' : '')
     });
 
     // Brief delay so the HTTP response reaches the UI before Terminal steals focus
     setTimeout(() => {
-      spawnTerminal(prompt).catch(err => {
+      spawnTerminal(prompt, cwd).catch(err => {
         console.error('Failed to spawn terminal:', err.message);
       });
     }, 500);

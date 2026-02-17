@@ -7,7 +7,8 @@
     "claude-fix": "./bin/claude-fix.js"
   },
   "scripts": {
-    "start": "node bin/claude-fix.js serve"
+    "start": "node bin/claude-fix.js serve",
+    "test": "node --test test/"
   },
   "keywords": ["claude", "cli", "daemon"],
   "author": "jp.riveraruiz",

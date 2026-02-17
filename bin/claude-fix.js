@@ -262,7 +262,7 @@ function cmdUninstall() {
   console.log(`Uninstalled: ${PLIST_DEST}`);
 }
 
-const VALID_CONFIG_KEYS = ['DD_API_KEY', 'DD_APP_KEY', 'CLAUDE_FIX_TERMINAL'];
+const VALID_CONFIG_KEYS = ['DD_API_KEY', 'DD_APP_KEY', 'CLAUDE_FIX_TERMINAL', 'GIT_SEARCH_PATHS', 'GIT_SEARCH_MAX_DEPTH'];
 
 function redact(value) {
   if (!value || value.length <= 4) return value || '';
@@ -294,7 +294,15 @@ function cmdConfig(args) {
     }
 
     const config = loadConfig();
-    config[key] = value;
+
+    // Type coercion for specific keys
+    if (key === 'GIT_SEARCH_PATHS') {
+      config[key] = value.split(',').map(p => p.trim());
+    } else if (key === 'GIT_SEARCH_MAX_DEPTH') {
+      config[key] = parseInt(value, 10);
+    } else {
+      config[key] = value;
+    }
 
     const configDir = path.dirname(CONFIG_FILE);
     if (!fs.existsSync(configDir)) {
@@ -342,15 +350,21 @@ Commands:
   uninstall            Remove launchd service
 
 Config keys:
-  DD_API_KEY, DD_APP_KEY, CLAUDE_FIX_TERMINAL
+  DD_API_KEY              Datadog API key
+  DD_APP_KEY              Datadog application key
+  CLAUDE_FIX_TERMINAL     Terminal app (Terminal, iTerm, Kitty, Alacritty, WezTerm)
+  GIT_SEARCH_PATHS        Comma-separated dirs to scan for repos (default: ~/dd)
+  GIT_SEARCH_MAX_DEPTH    Max directory depth for repo scan (default: 4)
 
 Examples:
   claude-fix serve
   claude-fix config set CLAUDE_FIX_TERMINAL iTerm
+  claude-fix config set GIT_SEARCH_PATHS "~/dd,~/projects"
+  claude-fix config set GIT_SEARCH_MAX_DEPTH 3
   claude-fix fix "TypeError: Cannot read property 'foo' of undefined"
 
 API:
-  GET http://localhost:${DEFAULT_PORT}/dd/claude-fix?data=<encoded-data>
+  GET http://localhost:${DEFAULT_PORT}/dd/claude-fix?data=<encoded-data>&repo=<host/owner/repo>
   GET http://localhost:${DEFAULT_PORT}/dd/health
 `);
 }
